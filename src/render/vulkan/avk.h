@@ -65,6 +65,12 @@ void avk_log(enum avk_log_level level, const char *fmt, ...)
  *
  * A number rather than a log line, because "was this run clean?" should be
  * answerable by a test and by `amsg get avk-stats` without anyone grepping. */
+/* True once any Vulkan call has reported VK_ERROR_DEVICE_LOST. Sticky: see
+ * avk_log.c. The renderer cannot produce another frame until the device is
+ * rebuilt, so the frame path reads this to tell a lost GPU apart from a bug
+ * in AVK. */
+bool avk_device_lost(void);
+
 uint64_t avk_validation_errors(void);
 void avk_validation_error_count(void);
 

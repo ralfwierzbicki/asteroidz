@@ -35,8 +35,43 @@ struct az_frame_options {
  */
 static inline bool az_output_build_frame(Monitor *m,
 		struct wlr_output_state *state, const struct az_frame_options *opts) {
-	if (az_avk_build_frame(m, state, opts->color_transform)) {
+	if (!avk_device_lost() &&
+			az_avk_build_frame(m, state, opts->color_transform)) {
 		return true;
+	}
+	/*
+	 * ── A LOST DEVICE IS NOT A REFUSAL ───────────────────────────────────
+	 *
+	 * The abort below exists to catch a bug in AVK. A device loss is not one:
+	 * the GPU was reset out from under this process, usually because some
+	 * other client hung it, and the driver says so in as many words -- radv
+	 * logs "The CS has been cancelled because the context is lost. This
+	 * context is innocent." Aborting on it reports a fault in the one piece
+	 * of software that did nothing wrong, and takes the session, every client
+	 * and their unsaved work with it.
+	 *
+	 * There is still no frame to build. A reset loses VRAM, so every imported
+	 * client image, every pipeline and every cache belongs to a device that no
+	 * longer exists, and nothing can be rendered until the device is rebuilt
+	 * -- which this does not yet do. So end the session the way a session
+	 * ends: wl_display_terminate, clients disconnected, teardown run. That is
+	 * not a recovery, and it is not meant to look like one; it is the
+	 * difference between a compositor that exits when its GPU disappears and
+	 * one that SIGABRTs mid-frame with the damage ring half rotated.
+	 *
+	 * Announced once. Every output reaches this on the same frame, and a
+	 * terminate already in flight does not need repeating.
+	 */
+	if (avk_device_lost()) {
+		static bool announced = false;
+		if (!announced) {
+			announced = true;
+			wlr_log(WLR_ERROR,
+				"the GPU was lost (VK_ERROR_DEVICE_LOST) and AVK cannot build "
+				"another frame; ending the session.");
+			quit_now(NULL);
+		}
+		return false;
 	}
 	/*
 	 * ── THERE IS NOWHERE ELSE FOR A FRAME TO COME FROM ───────────────────

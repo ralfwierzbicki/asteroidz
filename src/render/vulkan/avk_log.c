@@ -106,9 +106,33 @@ const char *avk_strerror(VkResult res) {
 	}
 }
 
+/*
+ * The device is gone, and it is not coming back on its own.
+ *
+ * Recorded HERE because avk_check() is the one funnel every Vulkan call
+ * already passes through, so a loss is caught wherever the driver chooses to
+ * report it -- vkQueueSubmit2 is merely where it usually surfaces, and
+ * vkWaitForFences, vkAcquireNextImageKHR and the timeline read in
+ * avk_device_timeline_value() can all report it first.
+ *
+ * Sticky on purpose. VK_ERROR_DEVICE_LOST is terminal for a VkDevice: every
+ * subsequent call on it is permitted to keep failing, so a flag that could be
+ * cleared without recreating the device would only describe the last call
+ * rather than the device. Clearing it is the job of whatever eventually
+ * rebuilds the device, which is not written yet.
+ */
+static bool device_lost = false;
+
+bool avk_device_lost(void) {
+	return device_lost;
+}
+
 bool avk_check(VkResult res, const char *msg) {
 	if (res == VK_SUCCESS) {
 		return true;
+	}
+	if (res == VK_ERROR_DEVICE_LOST) {
+		device_lost = true;
 	}
 	avk_log(AVK_ERROR, "%s: %s (%d)", msg, avk_strerror(res), (int)res);
 	return false;
