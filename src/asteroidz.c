@@ -2388,6 +2388,7 @@ static struct {
  * to reach it -- flipping xwayland_force_scale_one must re-measure the
  * windows that are already open. */
 static void client_update_x11_scale(Client *c);
+static void client_apply_x11_view_scale(Client *c);
 #endif
 /* Same reason as client_update_x11_scale above: config/parse_config.h is
  * included before this is defined, and config_apply_live() has to reach it.
@@ -8893,6 +8894,9 @@ mapnotify(struct wl_listener *listener, void *data) {
 	 * Hyprland's force_zero_scaling makes, and it is stated in the option's
 	 * own description rather than hidden. */
 	client_update_x11_scale(c);
+	/* Unconditionally, because the nodes above are new even when the scale is
+	 * not: see client_apply_x11_view_scale(). */
+	client_apply_x11_view_scale(c);
 
 	client_get_geometry(c, &c->geom);
 
@@ -13743,6 +13747,29 @@ static void x11_scale_apply_iter(struct wlr_scene_buffer *buffer, int32_t sx,
 												 : WLR_SCALE_FILTER_NEAREST);
 }
 
+/*
+ * Put the current view scale back onto the scene buffer nodes.
+ *
+ * The scale is remembered on the Client, but it is APPLIED to the scene
+ * buffers -- and those are created fresh on every map, defaulting to 1.0.
+ * client_update_x11_scale() returns early when the value has not changed,
+ * which is exactly the case for a window that unmapped and mapped again: the
+ * Client still says 1.5, so nothing re-applied it, and the new nodes present
+ * a buffer XWayland rendered at 1.5x as though it were 1:1. Text comes out
+ * 1.5x too large, and a clip computed in logical units then crops a surface
+ * committing pixels -- the "loses its right-hand fifth" case that
+ * client_set_surface_clip() converts for. Correct on first map, wrong on
+ * every map after it, which is why it looks like a tray-restore bug.
+ */
+static void client_apply_x11_view_scale(Client *c) {
+	if (!c || !client_is_x11(c) || c->scene_surface == NULL) {
+		return;
+	}
+	float scale = client_x11_scale(c);
+	wlr_scene_node_for_each_buffer(&c->scene_surface->node,
+								   x11_scale_apply_iter, &scale);
+}
+
 /* The scale of a monitor, as an X11 client would be measured in it.
  *
  * At or below 1 there is nothing to force: the buffer would have to be
@@ -13872,10 +13899,7 @@ void client_update_x11_scale(Client *c) {
 	}
 	c->x11_scale = want;
 
-	if (c->scene_surface) {
-		wlr_scene_node_for_each_buffer(&c->scene_surface->node,
-									   x11_scale_apply_iter, &want);
-	}
+	client_apply_x11_view_scale(c);
 
 	/* The window is now being measured in a different unit, so whatever it
 	 * was last told is wrong by exactly that factor. Ask again -- the short
