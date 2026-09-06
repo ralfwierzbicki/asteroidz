@@ -12978,7 +12978,25 @@ static bool mon_wants_vrr(Monitor *m) {
 		if (c->mon != m || c->iskilling || c->isminimized) {
 			continue;
 		}
-		if (!c->isfullscreen || !VISIBLEON(c, m)) {
+		/*
+		 * RUNNING, not VISIBLE. A fullscreen game on another tag of this
+		 * output still owns the cadence the display should follow: it is
+		 * rendering, and it is coming back. Requiring visibility meant every
+		 * tag switch away from it eventually crossed the rate gate below and
+		 * committed adaptive sync off -- an out-of-band KMS commit plus a
+		 * presenter epoch reset -- and the switch back committed again. Two
+		 * modesets and two pacing restarts for a round trip to another tag,
+		 * which is the stutter this trades away.
+		 *
+		 * The cost is stated rather than hidden: vrr_rate_gate() re-asks this
+		 * predicate, so while a game is running the gate can no longer turn
+		 * VRR off, and an idle desktop on this output holds adaptive sync
+		 * below its floor. That is the case the gate was written for. If
+		 * DP-1 starts blanking on an idle desktop with a game parked on
+		 * another tag, this line is the reason and restoring VISIBLEON is
+		 * the revert.
+		 */
+		if (!c->isfullscreen) {
 			continue;
 		}
 		if (c->vrr_only_fullscreen
