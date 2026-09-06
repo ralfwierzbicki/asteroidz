@@ -907,6 +907,7 @@ int32_t resizewin(const Arg *arg) {
 		break;
 	}
 
+	c->geom = clamp_geom_to_monitor(c, c->geom);
 	c->iscustomsize = 1;
 	c->float_geom = c->geom;
 	resize(c, c->geom, 0);

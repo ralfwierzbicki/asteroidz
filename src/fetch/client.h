@@ -182,6 +182,54 @@ setclient_coordinate_center(Client *c, Monitor *tm, struct wlr_box geom,
 
 	return tempbox;
 }
+/*
+ * Hold an interactively resized window inside the monitor it is on.
+ *
+ * A drag or a resize keybind works in raw layout coordinates, so on a
+ * multi-monitor layout nothing stopped a window growing past its own output
+ * and onto the neighbour -- which is a different display with its own scale
+ * and refresh, showing a strip of a window that belongs to the monitor next
+ * to it. Moving a window across is deliberate; growing across is not.
+ *
+ * Each edge is clamped independently rather than the whole box being pushed
+ * back inside, so the edge the user is NOT dragging stays where they left it:
+ * a right-edge drag that reaches the monitor edge stops growing instead of
+ * sliding the window leftwards out from under the pointer.
+ *
+ * Overview is exempt for the same reason resize_tile_client() refuses there --
+ * the overview owns client geometry while it is up, and clamping would be
+ * fighting it.
+ */
+struct wlr_box clamp_geom_to_monitor(Client *c, struct wlr_box geom) {
+	Monitor *m = c ? c->mon : NULL;
+	if (!m || m->isoverview) {
+		return geom;
+	}
+
+	int32_t left = geom.x;
+	int32_t top = geom.y;
+	int32_t right = geom.x + geom.width;
+	int32_t bottom = geom.y + geom.height;
+
+	if (left < m->m.x)
+		left = m->m.x;
+	if (top < m->m.y)
+		top = m->m.y;
+	if (right > m->m.x + m->m.width)
+		right = m->m.x + m->m.width;
+	if (bottom > m->m.y + m->m.height)
+		bottom = m->m.y + m->m.height;
+
+	/* The same floor applybounds() uses, so a monitor narrower than a
+	 * window's borders cannot produce a zero or negative extent. */
+	int32_t min = 1 + 2 * (int32_t)c->bw;
+	geom.x = left;
+	geom.y = top;
+	geom.width = ASTEROIDZ_MAX(min, right - left);
+	geom.height = ASTEROIDZ_MAX(min, bottom - top);
+	return geom;
+}
+
 /* Helper: Check if rule matches client. At least one matcher must be set,
  * and every set matcher must match. */
 static bool is_window_rule_matches(const ConfigWinRule *r, Client *c,

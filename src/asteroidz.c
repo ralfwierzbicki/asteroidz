@@ -1735,6 +1735,7 @@ static struct wlr_box setclient_coordinate_center(Client *c, Monitor *m,
 												  struct wlr_box geom,
 												  int32_t offsetx,
 												  int32_t offsety);
+static struct wlr_box clamp_geom_to_monitor(Client *c, struct wlr_box geom);
 static uint32_t get_tags_first_tag(uint32_t tags);
 
 static struct wlr_output_mode *
@@ -9190,9 +9191,9 @@ void resize_floating_window(Client *grabc) {
 		.width = grabc->geom.width + (rzcorner & 1 ? cdx : -cdx),
 		.height = grabc->geom.height + (rzcorner & 2 ? cdy : -cdy)};
 
-	grabc->float_geom = box;
+	grabc->float_geom = clamp_geom_to_monitor(grabc, box);
 
-	resize(grabc, box, 1);
+	resize(grabc, grabc->float_geom, 1);
 	grabcx += cdx;
 	grabcy += cdy;
 }
