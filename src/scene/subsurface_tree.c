@@ -93,7 +93,26 @@ static bool subsurface_tree_reconfigure_clip(
 		wlr_scene_node_set_enabled(&subsurface_tree->scene_surface->buffer->node, intersects);
 
 		if (intersects) {
-			wlr_scene_node_set_position(&subsurface_tree->scene_surface->buffer->node, clip.x, clip.y);
+			/*
+			 * The clip is in SURFACE units and the node position is LOGICAL,
+			 * and for a view-scaled surface those are not the same unit. The
+			 * box is used for both: as a crop, where an X11 client's clip has
+			 * deliberately been converted to pixels, and as a node offset,
+			 * which must stay logical. Passing the pixel box to both moved the
+			 * node by view_scale times the distance the crop removed -- so an
+			 * X11 window overflowing an edge lost the overflow AND slid by the
+			 * surplus, which is the clipped-content-in-a-shifted-window look.
+			 * view_scale is 1 for every Wayland surface, so this is identity
+			 * for them and the divide only bites where the conversion did.
+			 */
+			float view_scale = subsurface_tree->scene_surface->view_scale;
+			if (view_scale <= 0.0f) {
+				view_scale = 1.0f;
+			}
+			wlr_scene_node_set_position(
+				&subsurface_tree->scene_surface->buffer->node,
+				(int)roundf((float)clip.x / view_scale),
+				(int)roundf((float)clip.y / view_scale));
 			scene_surface_set_clip(subsurface_tree->scene_surface, &clip);
 		}
 
