@@ -14072,6 +14072,18 @@ void createnotifyx11(struct wl_listener *listener, void *data) {
 	 * anything below 1 as 1, so both behave the same -- but a scale of zero
 	 * sitting in the struct is a division waiting to happen. */
 	c->x11_scale = 1.0f;
+	/*
+	 * Same reason, and it matters more: this one is a TRISTATE where 0 is not
+	 * "unset" but "this window is explicitly excluded from scale-one". Left at
+	 * ecalloc's zero it reads as a deliberate opt-out for the whole window
+	 * between here and init_client_properties(), and mapnotify computes the
+	 * scale AND converts the geometry inside that window -- so the client's
+	 * device pixels were stored as logical coordinates and the window came out
+	 * mispositioned and oversized by exactly the output scale. Every later
+	 * recomputation saw -1 and got it right, which is why it looked like a
+	 * window that fixes itself a moment after opening.
+	 */
+	c->xwayland_scale_one = -1;
 	/* Listen to the various events it can emit */
 	LISTEN(&xsurface->events.associate, &c->associate, associatex11);
 	LISTEN(&xsurface->events.destroy, &c->destroy, destroynotify);
