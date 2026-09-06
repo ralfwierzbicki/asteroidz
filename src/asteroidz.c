@@ -9195,11 +9195,32 @@ void resize_floating_window(Client *grabc) {
 		.width = grabc->geom.width + (rzcorner & 1 ? cdx : -cdx),
 		.height = grabc->geom.height + (rzcorner & 2 ? cdy : -cdy)};
 
-	grabc->float_geom = clamp_geom_to_monitor(grabc, box);
+	const struct wlr_box fit = clamp_geom_to_monitor(grabc, box);
+	grabc->float_geom = fit;
 
-	resize(grabc, grabc->float_geom, 1);
-	grabcx += cdx;
-	grabcy += cdy;
+	resize(grabc, fit, 1);
+
+	/*
+	 * Advance the anchor by the travel the clamp ACCEPTED, not by the raw
+	 * pointer delta, measured on the edge actually being dragged.
+	 *
+	 * The pointer is physical and keeps going when the window stops at the
+	 * monitor edge -- nothing here can hold it back. What this stops is the
+	 * two drifting apart: charging the anchor for refused travel means
+	 * dragging back moves the edge immediately, from a position the pointer
+	 * left some distance ago, so the edge trails the cursor by the whole
+	 * overshoot for the rest of the gesture. Charging only what was used
+	 * makes them meet again at the boundary, which is where the pointer has
+	 * to come back to anyway.
+	 */
+	const int32_t used_x = (rzcorner & 1)
+		? (fit.x + fit.width) - (box.x + box.width)
+		: fit.x - box.x;
+	const int32_t used_y = (rzcorner & 2)
+		? (fit.y + fit.height) - (box.y + box.height)
+		: fit.y - box.y;
+	grabcx += cdx + used_x;
+	grabcy += cdy + used_y;
 }
 
 static void cursor_zoom_apply(Monitor *m) {
