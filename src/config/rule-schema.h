@@ -384,7 +384,8 @@ static const RuleField rule_schema[] = {
 
 /* ===== performance ===== */
 {"force_tearing", "force-tearing", "performance", "Allow tearing",
- "Let this window's frames reach the screen without waiting for vblank. Lower "
+ "Let this window's frames reach the screen without waiting for vblank (1), or "
+ "refuse it even when the presentation class would allow it (0). Lower "
  "latency, visible tearing.",
  RULE_TRISTATE, offsetof(ConfigWinRule, force_tearing), 0, 1, NULL, 0},
 {"xwayland_scale_one", "xwayland-scale-one", "visuals",

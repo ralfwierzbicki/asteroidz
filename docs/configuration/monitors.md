@@ -221,9 +221,14 @@ window-rule { match title=vkcube; force_tearing 1 }
 
 | `force_tearing` \ `allow_tearing` | DISABLED (0) | ENABLED (1) | FULLSCREEN_ONLY (2) |
 | :--- | :--- | :--- | :--- |
-| **UNSPECIFIED** (0) | Not Allowed | Follows tearing_hint | Only fullscreen follows tearing_hint |
-| **ENABLED** (1) | Not Allowed | Allowed | Only fullscreen allowed |
-| **DISABLED** (2) | Not Allowed | Not Allowed | Not Allowed |
+| **unset** (no rule) | Not Allowed | Follows the client's tearing hint, or its presentation class if that is `game` | Only fullscreen follows the hint or the `game` class |
+| **`force_tearing 1`** | Not Allowed | Allowed | Only fullscreen allowed |
+| **`force_tearing 0`** | Not Allowed | Not Allowed | Not Allowed |
+
+The rows are what you write in a window rule: leaving the property out is the
+unset row, and `0` is a refusal rather than a shrug. That distinction matters
+for a window whose `presentation-class` is `game`, because the class asks to
+tear on the window's behalf -- unset lets it, and `0` overrules it.
 
 ### When a Torn Flip Does Not Tear
 

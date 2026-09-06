@@ -282,7 +282,7 @@ instead, the same as fullscreen ones.
 
 | Parameter | Type | Values | Description |
 | :--- | :--- | :--- | :--- |
-| `force_tearing` / `force-tearing` | integer | `0` / `1` | Let this window's frames reach the screen without waiting for vblank. Lower latency, visible tearing. See [Tearing](/docs/configuration/monitors#tearing-game-mode) |
+| `force_tearing` / `force-tearing` | integer | `0` / `1` | Let this window's frames reach the screen without waiting for vblank (`1`), or refuse it even when the presentation class would allow it (`0`). Lower latency, visible tearing. See [Tearing](/docs/configuration/monitors#tearing-game-mode) |
 | `noscanout` / `no-scanout` | integer | `0` / `1` | Keep this window out of direct scan-out and push it through the render pass. For clients whose buffers are not safe to hand straight to a KMS plane — gamescope without explicit sync tears RGB noise across the screen otherwise |
 | `vrr_only_fullscreen` / `vrr-only-fullscreen` | integer | `0` / `1` | Turn variable refresh on while this window is fullscreen and off again afterwards, rather than leaving it on for the whole output |
 | `force_hdr` / `force-hdr` | integer | `0` / `1` | Switch the output to HDR while this window is on it. The way to run HDR for one player without an HDR desktop |

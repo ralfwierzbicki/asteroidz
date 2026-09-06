@@ -3723,7 +3723,22 @@ static void apply_rule_properties(Client *c, const ConfigWinRule *r,
 	APPLY_INT_PROP(c, r, force_ssd);
 	APPLY_INT_PROP(c, r, force_fakemaximize);
 	APPLY_INT_PROP(c, r, force_tiled_state);
-	APPLY_INT_PROP(c, r, force_tearing);
+	/*
+	 * force_tearing is the one rule property whose config values and client
+	 * values are different alphabets. The config tristate is -1 unset, 0 off,
+	 * 1 on; the client field is a STATE_*, where 0 is UNSPECIFIED rather than
+	 * off. APPLY_INT_PROP copies, so `force_tearing 0` landed as "no opinion"
+	 * -- which for a GAME-classed window is not off at all, because the class
+	 * asks to tear on the window's behalf and an unspecified field lets it.
+	 * The rule could say "tear" and could stay silent, but had no way to say
+	 * "do not", which is what a tristate is for. Translate instead of copying.
+	 *
+	 * STATE_UNSPECIFIED stays 0 so that an ecalloc'd Client no rule mentions
+	 * starts with no opinion, which is why this maps rather than renumbering.
+	 */
+	if (r->force_tearing >= 0) {
+		c->force_tearing = r->force_tearing ? STATE_ENABLED : STATE_DISABLED;
+	}
 	APPLY_INT_PROP(c, r, noswallow);
 	APPLY_INT_PROP(c, r, nofocus);
 	APPLY_INT_PROP(c, r, nofadein);
