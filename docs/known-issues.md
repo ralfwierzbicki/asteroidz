@@ -39,6 +39,25 @@ read the process exit status, not the log. A run that faults here still writes
 every stat line and then dies, so grepping for `AVK_TEARDOWN_END` reports a
 crash as a pass.
 
+## OPEN — a GPU reset ends the session; the device is not recreated
+
+A GPU reset outside this process -- another client hanging the graphics ring,
+which radv reports as *"the CS has been cancelled because the context is lost.
+This context is innocent."* -- surfaces here as `VK_ERROR_DEVICE_LOST` on the
+next submit. AVK cannot build a frame after that, and the session ends.
+
+It ends *cleanly* now: the loss is recognised as a distinct state and answered
+with `wl_display_terminate`, so clients are disconnected and teardown runs.
+Before, it fell through as an ordinary submit failure into the abort that
+exists for "AVK declined and nobody noticed", and produced a SIGABRT mid-frame
+with the damage ring half rotated.
+
+What is still missing is recovery. A reset loses VRAM, so every imported client
+image, every pipeline and every cache belongs to a device that no longer
+exists; rebuilding them means recreating the `VkDevice` and re-importing
+everything, with clients asked to redraw. Until that exists, a reset costs the
+session -- which is a smaller loss than it was, and still a loss.
+
 ## OPEN — a scanned-out fullscreen client records nothing
 
 Found while validating inter on the live output. With mpv fullscreen and direct

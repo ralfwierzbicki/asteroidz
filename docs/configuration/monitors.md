@@ -433,6 +433,20 @@ notification that borrowed the keyboard flipped the answer. A fullscreen game
 stays fullscreen while a popup takes focus, so under the output-scoped rule
 nothing is committed.
 
+**Running, not visible.** The window does not have to be on the tag you are
+looking at. A fullscreen game parked on another tag is still rendering and
+still coming back; what it stopped being is *looked at*. Requiring visibility
+meant every tag switch away from a game eventually crossed the rate gate below
+and committed adaptive sync off, and the switch back committed it on again --
+two modesets and two presenter epoch resets for a round trip to another tag,
+felt as a stutter on the way out and the way back.
+
+The cost is stated rather than hidden: the rate gate re-asks the same
+question, so **while a game is running the gate cannot turn VRR off**, and an
+idle desktop on that output holds adaptive sync below its floor for as long as
+the game lives. That is the case the gate was written for. If a panel blanks on
+an idle desktop with a game parked on another tag, this is the reason.
+
 **Turning it off waits for the desktop to actually slow down; turning it on does
 not.** Each transition is a modeset and a visible blank, and they arrive in
 pairs: a game that loses the output and takes it back — alt-tab, a surface
@@ -466,7 +480,8 @@ because keeping VRR is the cheap error.
 | --- | --- |
 | alt-tab and come back | under 20s below the floor, VRR never drops — **no modesets** |
 | alt-tab and keep working | rate stays up, VRR never drops — no modesets, however long you are away |
-| alt-tab and walk away | below the floor and stays there, VRR drops — one modeset, when it is actually needed |
+| alt-tab and walk away, game exited | below the floor and stays there, VRR drops — one modeset, when it is actually needed |
+| alt-tab and walk away, game still running | VRR is held, because the game still wants it — no modesets, and the desktop runs below the floor |
 
 It cannot oscillate, because nothing turns VRR back on while no game wants it:
 the desktop's own rate can only move the answer one way.
